@@ -112,6 +112,7 @@ def writeCacheDict(cacheDict, maxFor):
   except Exception as e:
     print('ERROR: CACHE NOT UPDATED')
 
+
 def addBoardsAndScore(cache, board, score):
   transformStrSet = transformsToStrSet(getTransforms(board))
   for boardStr in transformStrSet:

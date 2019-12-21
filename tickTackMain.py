@@ -1,4 +1,4 @@
-import copy, random, time
+import copy, random, time, math
 from collections import Counter, defaultdict
 import minimaxCaching
 
@@ -166,10 +166,10 @@ def minimaxTiebreak(possibleMoves, board, turn, cache):
     for oppMove in possOppMoves:
       tmpTmpBoard = execMove(tmpBoard, oppMove, opponent)
       tmpScore = minimax_score(tmpTmpBoard, turn, turn, cache)
-      if tmpScore == 10:
+      if (tmpScore >= 10):
         # Increment if subsequent move leads to win
         scores[move] += 1
-      elif tmpScore == 0:
+      elif tmpScore >= 0:
         # There may not be any 'winning' moves at this point, so initialize some
         # other 'non-losing' score at 0 to prevent index error below
         # but ensure it won't win out over a better move
@@ -177,97 +177,23 @@ def minimaxTiebreak(possibleMoves, board, turn, cache):
 
   # return move with most winning options assuming opponent makes mistake
   # most_common returns list of tuples of move and '10 count'
+
   bestMove = scores.most_common(1)
   coords = bestMove[0][0]
   return coords
 
-# def minimax_ai(board, turn, tieBreak=True):
-#   # Will not function properly if board passed in is in game over state.
-#   moves = getLegalMoves(board)
-#   scoreMoves = []
-#   opponent = 'O' if (turn == 'X') else 'X'
-#   for move in moves:
-#     tmpBoard = execMove(board, move, turn)
-#     score = minimax_score(tmpBoard, opponent, turn)
-#     scoreMoves.append((score, move))
-#   scores = defaultdict(list)
-#   for score, move in scoreMoves:
-#     scores[score].append(move)
-#   maxScore = max(scores.keys())
-#   ## Tie break
-#   if len(scores[maxScore]) > 1 and tieBreak:
-#     coords = minimaxTiebreak(scores[maxScore], board, turn)
-#   else:
-#     coords = scores[maxScore][0]
-#   ##
-#   return coords
 
 
-# # # minimax recursive algorithm, board is current state, maxFor is for top level player
-# # def minimax_score(board, current_player, maxFor):
-# #   tmpWinner = hasWinner(board)
-# #   if tmpWinner != False:
-# #     if tmpWinner == maxFor:
-# #       return 10
-# #     else:
-# #       return -10
-# #   elif gameOver(board):
-# #     return 0
-# #   else:
-# #     legal_moves = getLegalMoves(board)
-# #     #should return array of tuples
-# #     scores = []
+def minimax_score(board, current_player, maxFor, cache, alpha=-math.inf, beta=math.inf):
+  # First, check if this board state has already been cached
+  if cache != None:
+      boardStr = str(board)
+      if boardStr in cache:
+        # Found the board, moving on
+        return cache[boardStr]
 
-# #     for move in legal_moves:
-# #       tmpBoard = execMove(board, move, current_player)
-# #       otherPlayer = 'O' if current_player == 'X' else 'X'
-# #       score = minimax_score(tmpBoard, otherPlayer, maxFor)
-# #       scores.append(score)
-
-# #     if current_player == maxFor:
-# #       return max(scores)
-# #     else:
-# #       # current_player is not maximizer
-# #       return min(scores)
-
-# def minimax_score(board, current_player, maxFor, caching=True):
-#   tmpWinner = hasWinner(board)
-#   if tmpWinner != False:
-#     if tmpWinner == maxFor:
-#       return 10
-#     else:
-#       return -10
-#   elif gameOver(board):
-#     return 0
-#   else:
-#     if caching:
-#       cache = minimaxCaching.readCache(maxFor)
-#       boardStr = str(board)
-#       if boardStr in cache:
-#         # Found the board, moving on
-#         return cache[boardStr]
-
-#     legal_moves = getLegalMoves(board)
-#     #should return array of tuples
-#     scores = []
-
-#     for move in legal_moves:
-#       tmpBoard = execMove(board, move, current_player)
-#       otherPlayer = 'O' if current_player == 'X' else 'X'
-#       score = minimax_score(tmpBoard, otherPlayer, maxFor)
-#       if caching:
-#         # board was not in cache, so add it
-#         minimaxCaching.cacheBoard(tmpBoard, score, maxFor)
-#       scores.append(score)
-
-#     if current_player == maxFor:
-#       return max(scores)
-#     else:
-#       # current_player is not maximizer
-#       return min(scores)
-
-
-def minimax_score(board, current_player, maxFor, cache):
+  # Either not caching, or board has not been seen yet
+  # Check if endstate ( base case)
   tmpWinner = hasWinner(board)
   if tmpWinner != False:
     if tmpWinner == maxFor:
@@ -276,33 +202,46 @@ def minimax_score(board, current_player, maxFor, cache):
       return -10
   elif gameOver(board):
     return 0
-  else:
-    if cache != None:
-      boardStr = str(board)
-      if boardStr in cache:
-        # Found the board, moving on
-        return cache[boardStr]
 
+  else: # Recursive call with alpha-beta pruning
+
+    # All children of current node
     legal_moves = getLegalMoves(board)
-    #should return array of tuples
-    scores = []
-
-    for move in legal_moves:
-      tmpBoard = execMove(board, move, current_player)
-      otherPlayer = 'O' if (current_player == 'X') else 'X'
-      score = minimax_score(tmpBoard, otherPlayer, maxFor, cache)
-      if cache != None:
-        # board was not in cache, so add it
-        minimaxCaching.addBoardsAndScore(cache, tmpBoard, score)
-        
-
-      scores.append(score)
 
     if current_player == maxFor:
-      return max(scores)
+      score = -math.inf
+      for move in legal_moves:
+        tmpBoard = execMove(board, move, current_player)
+        otherPlayer = 'O' if (current_player == 'X') else 'X'
+        tmpScore = minimax_score(tmpBoard, otherPlayer, maxFor, cache, alpha, beta)
+        score = max(score, tmpScore)
+        alpha = max(alpha, score)
+        if alpha >= beta:
+          break
+      return score
+
     else:
-      # current_player is not maximizer
-      return min(scores)
+      score = math.inf
+      for move in legal_moves:
+        tmpBoard = execMove(board, move, current_player)
+        otherPlayer = maxFor
+        tmpScore = minimax_score(tmpBoard, otherPlayer, maxFor, cache, alpha, beta)
+        score = min(score, tmpScore)
+        beta = min(beta, score)
+        if alpha >= beta:
+          break
+      return score
+
+def cacheTest(player):
+  cache = minimaxCaching.readCache(player)
+  for key in cache:
+    board = eval(key)
+    score = minimax_score(board, player, player, None)
+    
+    try:    
+      assert(score == cache[key])
+    except:
+      print(score, key, cache[key])
 
 def minimax_ai(board, turn, tieBreak=True, caching=True):
   # Will not function properly if board passed in is in game over state.
@@ -312,27 +251,31 @@ def minimax_ai(board, turn, tieBreak=True, caching=True):
   opponent = 'O' if (turn == 'X') else 'X'
   if caching:
     cache = minimaxCaching.readCache(turn)
-    copyCache = copy.deepcopy(cache)
   else:
     cache = None
+
+  bestScore = -math.inf
+  bestMove = []
 
   for move in moves:
     tmpBoard = execMove(board, move, turn)
     score = minimax_score(tmpBoard, opponent, turn, cache)
-    scoreMoves.append((score, move))
-  scores = defaultdict(list)
-  for score, move in scoreMoves:
-    scores[score].append(move)
-  maxScore = max(scores.keys())
+    if caching:
+      minimaxCaching.addBoardsAndScore(cache, tmpBoard, score)
+    if score > bestScore:
+      bestScore = score
+      bestMove = [move]
+    elif score == bestScore:
+      bestMove.append(move)
   ## Tie break
-  if len(scores[maxScore]) > 1 and tieBreak:
-    coords = minimaxTiebreak(scores[maxScore], board, turn, cache)
+  if len(bestMove) > 1 and tieBreak:
+    bestMove = minimaxTiebreak(bestMove, board, turn, cache)
   else:
-    coords = scores[maxScore][0]
+    bestMove = bestMove[0]
   ##
   if caching:
     minimaxCaching.writeCacheDict(cache, turn)
-  return coords
+  return bestMove
 
 ########################################################
 #returns all legal moves on the board
@@ -447,9 +390,9 @@ def playNGames(player1, player2, n):
   results = []
   start = time.time()
   for _ in range(n):
-    print('Game', _, 'of', str(n-1))
+    # print('Game', _, 'of', str(n-1))
     #playes two games for each n (which was divided in half), trading start role
-    print('\tRound 1: %s as "O", %s as "X"' % (player1.__name__, player2.__name__))
+    # print('\tRound 1: %s as "O", %s as "X"' % (player1.__name__, player2.__name__))
     winner1 = run(AI=player1, AI2=player2, AI2Role='X')
     if winner1 == 'X':
       results.append(player2.__name__)
@@ -457,9 +400,9 @@ def playNGames(player1, player2, n):
       results.append(player1.__name__)
     else:
       results.append(None)
-    print('\tRound 1 winner:', winner1)
+    # print('\tRound 1 winner:', winner1)
     # trade off starting role
-    print('\tRound 2: %s as "X", %s as "O"' % (player1.__name__, player2.__name__))
+    # print('\tRound 2: %s as "X", %s as "O"' % (player1.__name__, player2.__name__))
     winner2 = run(AI=player1, AI2=player2, AI2Role='O')
     if winner2 == 'O':
       results.append(player2.__name__)
@@ -467,8 +410,9 @@ def playNGames(player1, player2, n):
       results.append(player1.__name__)
     else:
       results.append(None)
-    print('\tRound 2 winner:', winner2)
+    # print('\tRound 2 winner:', winner2)
   wins = Counter(results)
+  print('Players:', player1.__name__, player2.__name__)
   print('\t',wins)
   print('\t runtime:',time.time()-start)
 
@@ -497,4 +441,5 @@ if __name__ == '__main__':
       print('Proper usage: python testingTIckTack.py func arg1 arg2...')
       raise e
   else:
-    run(minimax_ai, renderTurns=True)
+    playNGames(minimax_ai, minimax_ai, 20)
+    
