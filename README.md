@@ -5,4 +5,5 @@ Contains a 'tick-tack-toe' engine, as well as "ai"'s of varying degrees of skill
 
 #### To-do:
 * Change cache saving to JSON format
-* tkinter interface _(Honestly I probably have better things to do)_ 
+* tkinter or curses interface
+* redesign using flask for web app deployment
